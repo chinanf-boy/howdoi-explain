@@ -13,7 +13,7 @@
 
 ---
 
-## explain 🀄️
+## explain ✅
 
 <!-- doc-templite START generated -->
 <!-- time = '2018-08-12' -->
@@ -47,7 +47,7 @@
 
 - [requirements.txt](#requirementstxt)
 - [setup.py](#setuppy)
-- [howdoi](#howdoi)
+- [howdoi工作流程](#howdoi%E5%B7%A5%E4%BD%9C%E6%B5%81%E7%A8%8B)
   - [howdoi/__init__.py](#howdoi__init__py)
   - [howdoi/howdoi.py](#howdoihowdoipy)
     - [python + import](#python--import)
@@ -73,10 +73,10 @@
       - [format_answer](#format_answer)
       - [_enable_cache](#_enable_cache)
       - [_clear_cache](#_clear_cache)
-      - [howdoi](#howdoi-1)
+      - [howdoi](#howdoi)
       - [get_parser](#get_parser)
       - [command_line_runner](#command_line_runner)
-    - [__main__](#__main__)
+    - [`__main__`](#__main__)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -105,19 +105,21 @@ requests-cache==0.4.13
 
 1. 用户运行命令行，带上参数 (主要是需要提问的关键字;如`format date bash`) , [__main__启动了](#__main__)
 2. 然后[command_line_runner](#command_line_runner)开始[解析命令行参数](#get_parser), 并相应分流，主流程是[howdoi 函数](#howdoi)
-3. howdoi 开始它的表演，以[获得说明，命令的函数](#_get_instructions)
-    > 开始[获得结果链接](#_get_links)
-    3.1 组合所有常量和需要提问的关键字，将其[变为**Url**](#_get_search_url)
-    3.2 使用requests请求库，[请求上述Url, 获得结果返回](#_get_result) {期间，代理之类的设置就略过}
-    3.3 接过上述的html字符串，交由**pyquery**转换操作，[提取](#_extract_links) 搜索引擎(google,bind...) 的每个结果链接
-    3.4 至此, [获得结果链接](#_get_links)的操作完成，继续下一步
-    > 开始[获取问题](#_get_questions)
-    3.5 检查和过滤每个结果链接[是否为问题链接](#_is_question)
-    3.6 根据重要的用户参数，要多少答案，对链接进行以下处理
-        3.6.1 [计算一下位置](#get_link_at_pos)
-        3.6.2 [获得答案](#_get_answer)，放入答案集合
-    3.7 答案集合经由[获得说明，命令的函数](#_get_instructions)，返回[howdoi](#howdoi)统筹，返回
-    3.8 最后回到[command_line_runner](#command_line_runner) 打印适应的输出结果
+3. howdoi 开始它的表演，[获得命令函数](#_get_instructions)启动
+
+> 先开始[获得结果链接](#_get_links)
+
+- 3.1> 组合所有常量和需要提问的关键字，将其[变为**Url**](#_get_search_url)
+- 3.2> 使用requests请求库，[请求上述Url, 获得结果返回](#_get_result) {代理之类的设置略}
+- 3.3> 接过上述的html字符串，交由**pyquery**转换操作，[提取](#_extract_links) 搜索引擎(google,bind...) 的每个结果链接
+- 3.4> 至此, [获得结果链接](#_get_links)的操作完成，继续下一步
+> 开始[获取问题](#_get_questions)
+- 3.5> 检查和过滤每个结果链接[是否为解答链接](#_is_question)
+- 3.6> 根据重要的用户参数，要多少答案，对链接进行以下处理
+    - 3.6.1 [计算下第几个链接呢](#get_link_at_pos)
+    - 3.6.2 [请求解答链接，解析html, 获得答案](#_get_answer)，放入答案集合 *
+- 3.7> 答案集合经由[获得命令函数](#_get_instructions)，返回[howdoi](#howdoi)统筹，再返回
+- 3.8> 最后回到[command_line_runner](#command_line_runner) 打印适应的输出结果
 
 
 > **pyquery**，类Jquery语法操作 html
@@ -231,6 +233,9 @@ howdoi_session = requests.session()
 #### 各种工具函数和逻辑函数
 
 ##### get_proxies
+
+获取代理函数
+
 ``` py
 def get_proxies():
     proxies = getproxies()
@@ -246,6 +251,9 @@ def get_proxies():
 ```
 
 ##### _get_result
+
+Url请求函数
+
 ``` py
 def _get_result(url):
     try:
@@ -259,6 +267,9 @@ def _get_result(url):
 ```
 
 ##### _add_links_to_text
+
+添加答案的源网址
+
 ``` py
 def _add_links_to_text(element):
     hyperlinks = element.find('a')
@@ -275,15 +286,24 @@ def _add_links_to_text(element):
 ```
 
 ##### get_text
+
+添加源网址，并答案字符串返回
+
 ``` py
 def get_text(element):
     ''' return inner text in pyquery element '''
     _add_links_to_text(element)
-    return element.text(squash_space=False)
+    return element.text(squash_space=False) # 已经不对了，python3.6 没法使用
+    # 直接: return " ".join(element.text().split())
 
 ```
 
+> squash_space=False 是为了，去掉多余空格
+
 ##### _extract_links_from_bing
+
+解析bing搜索的结果链接
+
 ``` py
 def _extract_links_from_bing(html):
     html.remove_namespaces()
@@ -292,6 +312,9 @@ def _extract_links_from_bing(html):
 ```
 
 ##### _extract_links_from_google
+
+解析google搜索的结果链接
+
 ``` py
 def _extract_links_from_google(html):
     return [a.attrib['href'] for a in html('.l')] or \
@@ -300,6 +323,9 @@ def _extract_links_from_google(html):
 ```
 
 ##### _extract_links
+
+解析结果链接
+
 ``` py
 def _extract_links(html, search_engine):
     if search_engine == 'bing':
@@ -309,6 +335,9 @@ def _extract_links(html, search_engine):
 ```
 
 ##### _get_search_url
+
+获取搜索Url
+
 ``` py
 def _get_search_url(search_engine):
     return SEARCH_URLS.get(search_engine, SEARCH_URLS['google'])
@@ -316,6 +345,9 @@ def _get_search_url(search_engine):
 ```
 
 ##### _get_links
+
+获取，解析，搜索引擎「bing,google」的结果链接`<a href>`们
+
 ``` py
 def _get_links(query):
     search_engine = os.getenv('HOWDOI_SEARCH_ENGINE', 'google')
@@ -328,6 +360,9 @@ def _get_links(query):
 ```
 
 ##### get_link_at_pos
+
+用户要求的答案数量，到第几个解答链接了
+
 ``` py
 def get_link_at_pos(links, position):
     if not links:
@@ -342,6 +377,9 @@ def get_link_at_pos(links, position):
 ```
 
 ##### _format_output
+
+格式化输出，带不带颜色
+
 ``` py
 def _format_output(code, args):
     if not args['color']:
@@ -371,6 +409,9 @@ def _format_output(code, args):
 ```
 
 ##### _is_question
+
+是不是一个解答链接
+
 ``` py
 def _is_question(link):
     return re.search('questions/\d+/', link)
@@ -378,6 +419,9 @@ def _is_question(link):
 ```
 
 ##### _get_questions
+
+过滤解答链接
+
 ``` py
 def _get_questions(links):
     return [link for link in links if _is_question(link)]
@@ -385,6 +429,9 @@ def _get_questions(links):
 ```
 
 ##### _get_answer
+
+从请求解答链接，返回的html中解析答案，组合
+
 ``` py
 def _get_answer(args, links):
     link = get_link_at_pos(links, args['pos'])
@@ -392,10 +439,10 @@ def _get_answer(args, links):
         return False
     if args.get('link'):
         return link
-    page = _get_result(link + '?answertab=votes')
-    html = pq(page)
+    page = _get_result(link + '?answertab=votes') # 请求解答链接
+    html = pq(page) # 解析html
 
-    first_answer = html('.answer').eq(0)
+    first_answer = html('.answer').eq(0) 
 
     instructions = first_answer.find('pre') or first_answer.find('code')
     args['tags'] = [t.text for t in html('.post-tag')]
@@ -417,11 +464,14 @@ def _get_answer(args, links):
     if text is None:
         text = NO_ANSWER_MSG
     text = text.strip()
-    return text
+    return text # 获得答案字符串
 
 ```
 
 ##### _get_instructions
+
+内置问题，解答函数
+
 ``` py
 def _get_instructions(args):
     links = _get_links(args['query'])
@@ -432,7 +482,7 @@ def _get_instructions(args):
     if not question_links:
         return False
 
-    only_hyperlinks = args.get('link')
+    only_hyperlinks = args.get('link') # 用户参数， 仅需要解答链接
     star_headers = (args['num_answers'] > 1 or args['all'])
 
     answers = []
@@ -440,22 +490,25 @@ def _get_instructions(args):
     spliter_length = 80
     answer_spliter = '\n' + '=' * spliter_length + '\n\n'
 
-    for answer_number in range(args['num_answers']):
+    for answer_number in range(args['num_answers']): # 用户要几个答案
         current_position = answer_number + initial_position
         args['pos'] = current_position
         link = get_link_at_pos(question_links, current_position)
         answer = _get_answer(args, question_links)
         if not answer:
             continue
-        if not only_hyperlinks:
+        if not only_hyperlinks: # 是否仅输出解答链接
             answer = format_answer(link, answer, star_headers)
         answer += '\n'
-        answers.append(answer)
+        answers.append(answer) # 答案集合
     return answer_spliter.join(answers)
 
 ```
 
 ##### format_answer
+
+格式化答案
+
 ``` py
 def format_answer(link, answer, star_headers):
     if star_headers:
@@ -465,6 +518,9 @@ def format_answer(link, answer, star_headers):
 ```
 
 ##### _enable_cache
+
+缓存缓存
+
 ``` py
 def _enable_cache():
     if not os.path.exists(CACHE_DIR):
@@ -474,6 +530,9 @@ def _enable_cache():
 ```
 
 ##### _clear_cache
+
+删除缓存
+
 ``` py
 def _clear_cache():
     for cache in glob.iglob('{0}*'.format(CACHE_FILE)):
@@ -482,6 +541,9 @@ def _clear_cache():
 ```
 
 ##### howdoi
+
+开始，获取解答命令，和一些异常输出
+
 ``` py
 def howdoi(args):
     args['query'] = ' '.join(args['query']).replace('?', '')
@@ -493,6 +555,9 @@ def howdoi(args):
 ```
 
 ##### get_parser
+
+命令行参数解析
+
 ``` py
 def get_parser():
     parser = argparse.ArgumentParser(description='instant coding answers via the command line')
@@ -515,9 +580,12 @@ def get_parser():
 ```
 
 ##### command_line_runner
+
+有始有终的命令运行器
+
 ``` py
 def command_line_runner():
-    parser = get_parser()
+    parser = get_parser() # 始
     args = vars(parser.parse_args())
 
     if args['version']:
@@ -547,10 +615,10 @@ def command_line_runner():
         # Write UTF-8 to stdout: https://stackoverflow.com/a/3603160
         sys.stdout.buffer.write(utf8_result)
     # close the session to release connection
-    howdoi_session.close()
+    howdoi_session.close() # 终
 ```
 
-#### __main__
+#### `__main__`
 
 此文件作为直接运行时，触发
 

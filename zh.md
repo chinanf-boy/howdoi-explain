@@ -106,7 +106,7 @@ $h this is my query for howdoi
 
 - Benjamin Gleitzman ([\@gleitz])
 
-## 笔记
+## 描述
 
 - 适用于 Python2 和 Python3
 - 一个独立的 Windows 可执行文件
